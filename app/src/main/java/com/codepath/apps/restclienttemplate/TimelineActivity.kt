@@ -1,5 +1,6 @@
 package com.codepath.apps.restclienttemplate
 
+import EndlessRecyclerViewScrollListener
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -9,6 +10,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.codepath.apps.restclienttemplate.models.Tweet
 import com.codepath.asynchttpclient.callback.JsonHttpResponseHandler
 import okhttp3.Headers
+import org.json.JSONArray
 import org.json.JSONException
 
 class TimelineActivity : AppCompatActivity() {
@@ -17,6 +19,8 @@ class TimelineActivity : AppCompatActivity() {
     lateinit var rvTweets: RecyclerView
     lateinit var adapter: TweetsAdapter
     lateinit var swipeContainer: SwipeRefreshLayout
+    lateinit var scrollListener: EndlessRecyclerViewScrollListener
+    lateinit var linearLayoutManager: LinearLayoutManager
 
     val tweets = ArrayList<Tweet>()
 
@@ -40,10 +44,48 @@ class TimelineActivity : AppCompatActivity() {
         rvTweets = findViewById(R.id.rvTweets)
         adapter = TweetsAdapter(tweets)
 
-        rvTweets.layoutManager = LinearLayoutManager(this)
+        linearLayoutManager = LinearLayoutManager(this)
+        rvTweets.layoutManager = linearLayoutManager
         rvTweets.adapter = adapter
+        scrollListener = object : EndlessRecyclerViewScrollListener(linearLayoutManager) {
+            override fun onLoadMore(page: Int, totalItemsCount: Int, view: RecyclerView?) {
+                Log.i(TAG, "onLoadMore: $page")
+                loadMoreData()
+            }
+        }
+        // Adds the scroll listener to RecyclerView
+        rvTweets.addOnScrollListener(scrollListener)
+
         populateHomeTimeline()
 
+    }
+
+    private fun loadMoreData() {
+        // 1. Send an API request to retrieve appropriate paginated data
+        client.getNextPageOfTweets(object : JsonHttpResponseHandler() {
+            override fun onSuccess(statusCode: Int, headers: Headers, json: JSON) {
+                Log.i(TAG, "onSuccess for loadMoreData!" + json.toString())
+                // 2. Deserialize and construct new model objects from the API response
+                val jsonArray: JSONArray = json.jsonArray
+                try {
+                    val tweets: List<Tweet> = Tweet.fromJsonArray(jsonArray)
+                    // 3. Append the new data objects to the existing set of items inside the array of items
+                    // 4. Notify the adapter of the new items made with `notifyItemRangeInserted()`
+                    adapter.addAll(tweets)
+                } catch (e: JSONException) {
+                    e.printStackTrace()
+                }
+            }
+
+            override fun onFailure(
+                statusCode: Int,
+                headers: Headers,
+                response: String,
+                throwable: Throwable,
+            ) {
+                Log.e(TAG, "onFailure for loadMoreData!", throwable)
+            }
+        }, tweets[tweets.size - 1].id - 1)
     }
 
     fun populateHomeTimeline() {
