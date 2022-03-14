@@ -1,13 +1,15 @@
 package com.codepath.apps.restclienttemplate.models
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import org.json.JSONObject
 
-class Tweet {
-    var body: String = ""
-    var createAt: String = ""
-    var user: User? = null
-    var id: Long = 0
+@Parcelize
+class Tweet (var body: String = "",
+             var createAt: String = "",
+             var user: User? = null,
+             var id: Long = 0): Parcelable {
 
     companion object {
         fun fromJson(jsonObject: JSONObject) : Tweet {
@@ -28,7 +30,7 @@ class Tweet {
             return tweets
         }
 
-        fun getFormattedTimestamp(time : String) : String {
+        private fun getFormattedTimestamp(time : String) : String {
             return TimeFormatter.getTimeDifference(time)
         }
     }
